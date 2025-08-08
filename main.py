@@ -108,4 +108,4 @@ async def mcp_handler(request: JsonRpcRequest):
 
 @app.get("/")
 def read_root():
-    return {"status": "Mero AI Server is ready to captivate!"}
+    return  {"status": "Mero AI Server is ready to captivate! 🚀"}
