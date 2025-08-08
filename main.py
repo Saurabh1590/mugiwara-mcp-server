@@ -1,6 +1,16 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import logging
+import math
+
+def custom_cosine_similarity(vec1, vec2):
+    """Calculates cosine similarity between two vectors without external libraries."""
+    dot_product = sum(p * q for p, q in zip(vec1, vec2))
+    magnitude1 = math.sqrt(sum(p * p for p in vec1))
+    magnitude2 = math.sqrt(sum(q * q for q in vec2))
+    if not magnitude1 or not magnitude2:
+        return 0.0
+    return dot_product / (magnitude1 * magnitude2)
 
 # --- Setup ---
 # Set up logging to see messages in Vercel
