@@ -2,12 +2,9 @@ import os
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
 
-# --- CONFIGURATION ---
-# We will create a .env file for our secrets later.
-# For now, let's define them here.
-# IMPORTANT: Replace these with your actual details!
-MY_PHONE_NUMBER = "916387384905"  # ❗<-- REPLACE WITH YOUR 10-DIGIT NUMBER PREFIXED WITH 91
-MY_SECRET_BEARER_TOKEN = "mugiwaracoder-is-the-best-captain" # This is your secret key
+# --- CONFIGURATION (No changes here) ---
+MY_PHONE_NUMBER = "919876543210"  # ❗<-- Make sure this is your number
+MY_SECRET_BEARER_TOKEN = "mugiwaracoder-is-the-best-captain"
 
 # --- SETUP THE APP ---
 app = FastAPI()
@@ -40,32 +37,25 @@ AVAILABLE_TOOLS = {
 # --- MCP SERVER ENDPOINT ---
 # This is the single endpoint Puch AI will communicate with.
 
-class MCPRequest(BaseModel):
-    tool_name: str
-    params: dict
+# class MCPRequest(BaseModel):
+#     tool_name: str
+#     params: dict
 
 @app.post("/mcp")
-async def mcp_handler(request: MCPRequest):
-    """Handles all incoming requests from Puch AI."""
-    tool_name = request.tool_name
-    params = request.params
+async def mcp_handler(request: Request): # <--- CHANGE: Use the generic 'Request'
+    """
+    This is our debug handler. It will catch the request and show us its true structure.
+    """
+    # First, get the raw JSON body from the request
+    body = await request.json()
     
-    print(f"MCP Handler received request for tool: {tool_name} with params: {params}")
+    # THIS IS THE MOST IMPORTANT LINE. IT PRINTS THE BODY TO OUR LOGS.
+    print(f"RAW REQUEST BODY RECEIVED: {body}")
+    
+    # For now, just return a simple message so Puch doesn't see an error.
+    return {"status": "Message received and logged for debugging."}
 
-    if tool_name in AVAILABLE_TOOLS:
-        tool_function = AVAILABLE_TOOLS[tool_name]
-        try:
-            # Call the correct tool's function with its parameters
-            result = tool_function(**params)
-            return result
-        except Exception as e:
-            # Handle errors gracefully
-            print(f"Error executing tool {tool_name}: {e}")
-            raise HTTPException(status_code=500, detail=str(e))
-    else:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found.")
 
-# A simple root endpoint to check if the server is alive.
 @app.get("/")
 def read_root():
-    return {"status": "MugiwaraCoder's MCP Server is ready to set sail!"}
+    return {"status": "MugiwaraCoder's MCP Server is ready to set sail! (Debug Mode)"}
