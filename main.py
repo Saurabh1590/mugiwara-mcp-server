@@ -1,61 +1,111 @@
-import os
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+import logging
 
-# --- CONFIGURATION (No changes here) ---
-MY_PHONE_NUMBER = "916387384905"  # ❗<-- Make sure this is your number
-MY_SECRET_BEARER_TOKEN = "mugiwaracoder-is-the-best-captain"
-
-# --- SETUP THE APP ---
+# --- Setup ---
+# Set up logging to see messages in Vercel
+logging.basicConfig(level=logging.INFO)
 app = FastAPI()
 
-# --- TOOL DEFINITIONS ---
-# This is where we will define the logic for our tools.
+# --- Configuration ---
+# Make sure these are correct
+MY_PHONE_NUMBER = "916387384905" # ❗<-- REPLACE WITH YOUR NUMBER
+MY_SECRET_BEARER_TOKEN = "mugiwaracoder-is-the-best-captain"
+
+# --- Tool Logic ---
+# These are the actual functions our tools will execute.
 
 def tool_validate(token: str):
     """The entry-ticket tool required by Puch AI."""
-    print(f"Received token for validation: {token}")
+    logging.info(f"Validating token...")
     if token == MY_SECRET_BEARER_TOKEN:
-        print("✅ Validation successful!")
+        logging.info("✅ Validation successful!")
         return {"phone_number": MY_PHONE_NUMBER}
     else:
-        print("❌ Validation FAILED.")
+        logging.error("❌ Validation FAILED - Invalid Token.")
         raise HTTPException(status_code=401, detail="Invalid Bearer Token")
 
-def tool_persona_link(user_text: str):
-    """Our main tool. For now, it just replies with a placeholder."""
-    # We will add the Gemini AI logic here later.
-    print(f"Persona-Link tool called with text: {user_text}")
-    return {"message": f"Roger that! I received your text: '{user_text}'. The full analysis engine is coming soon!"}
+def tool_mero_ai(user_text: str):
+    """Our main tool, Mero AI. For now, it has a placeholder response."""
+    logging.info(f"Mero AI tool called with text: '{user_text}'")
+    # -----------------------------------------------------------
+    # LATER, WE WILL ADD THE GEMINI AI & MATCHING LOGIC HERE
+    # -----------------------------------------------------------
+    return {
+        "message": "💘 Mero Mero Mellow! Your personality is being analyzed... "
+                   "Full matching functionality coming soon! #BuildWithPuch"
+    }
 
-# A dictionary to map tool names to their functions. This makes our code clean.
+# A dictionary mapping tool names to their functions
 AVAILABLE_TOOLS = {
     "validate": tool_validate,
-    "persona_link": tool_persona_link, # Our main hackathon tool
+    "mero-ai": tool_mero_ai,
 }
 
-# --- MCP SERVER ENDPOINT ---
-# This is the single endpoint Puch AI will communicate with.
+# --- Pydantic Models for JSON-RPC ---
+# These models ensure the data from Puch has the correct structure.
 
-# class MCPRequest(BaseModel):
-#     tool_name: str
-#     params: dict
+class JsonRpcRequest(BaseModel):
+    jsonrpc: str = "2.0"
+    method: str
+    params: dict
+    id: int
+
+# --- Main MCP Server Endpoint ---
+# This single endpoint handles ALL communication from Puch.
 
 @app.post("/mcp")
-async def mcp_handler(request: Request): # <--- CHANGE: Use the generic 'Request'
-    """
-    This is our debug handler. It will catch the request and show us its true structure.
-    """
-    # First, get the raw JSON body from the request
-    body = await request.json()
+async def mcp_handler(request: JsonRpcRequest):
+    method = request.method
+    params = request.params
+    request_id = request.id
     
-    # THIS IS THE MOST IMPORTANT LINE. IT PRINTS THE BODY TO OUR LOGS.
-    print(f"RAW REQUEST BODY RECEIVED: {body}")
-    
-    # For now, just return a simple message so Puch doesn't see an error.
-    return {"status": "Message received and logged for debugging."}
+    logging.info(f"Received method: {method}")
 
+    # Step 1: Handle the "initialize" handshake
+    if method == "initialize":
+        logging.info("Handling 'initialize' request.")
+        return {
+            "jsonrpc": "2.0",
+            "id": request_id,
+            "result": {
+                "capabilities": {
+                    "tools": [
+                        {
+                            "name": "mero-ai",
+                            "description": "Analyzes your personality from text and finds your vibe-twin.",
+                            "parameters": {
+                                "type": "object",
+                                "properties": {
+                                    "user_text": {
+                                        "type": "string",
+                                        "description": "A few sentences about yourself, your hobbies, or what's on your mind."
+                                    }
+                                },
+                                "required": ["user_text"]
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+    # Step 2: Handle calls to our actual tools
+    elif method in AVAILABLE_TOOLS:
+        logging.info(f"Executing tool: {method}")
+        tool_function = AVAILABLE_TOOLS[method]
+        try:
+            result = tool_function(**params)
+            return {"jsonrpc": "2.0", "id": request_id, "result": result}
+        except Exception as e:
+            logging.error(f"Error executing tool {method}: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # Step 3: Handle unknown methods
+    else:
+        logging.error(f"Method not found: {method}")
+        raise HTTPException(status_code=404, detail=f"Method '{method}' not found.")
 
 @app.get("/")
 def read_root():
-    return {"status": "MugiwaraCoder's MCP Server is ready to set sail! (Debug Mode)"}
+    return {"status": "Mero AI Server is ready to captivate!"}
